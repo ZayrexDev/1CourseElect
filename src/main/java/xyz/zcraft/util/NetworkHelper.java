@@ -2,6 +2,7 @@ package xyz.zcraft.util;
 
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import org.apache.logging.log4j.Logger;
 import xyz.zcraft.User;
 import xyz.zcraft.elect.Round;
 
@@ -11,21 +12,34 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class NetworkHelper {
-    private static final String USER_INFO_URL = "https://1.tongji.edu.cn/api/sessionservice/session/getSessionUser";
-    private static final String ROUNDS_URL = "https://1.tongji.edu.cn/api/electionservice/student/getRounds?projectId=1";
-    private static final String LOGIN_URL = "https://1.tongji.edu.cn/api/ssoservice/system/loginIn";
-    private static final long REQUEST_DELAY_MS = 100;
+    private static final Logger LOG = org.apache.logging.log4j.LogManager.getLogger(NetworkHelper.class);
+    private static final long REQUEST_DELAY_MS = 50;
+    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
+
+    public static CompletableFuture<User> getUserFromPasswordAsync(String username, String password) {
+        return CompletableFuture.supplyAsync(() -> getUserFromPassword(username, password), EXECUTOR);
+    }
 
     public static User getUserFromPassword(String username, String password) {
         try (final HttpClient client = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NEVER).build()) {
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .connectTimeout(Duration.ofSeconds(10))
+                .build()) {
+            LOG.info("Starting login process for user {}", username);
+            LOG.info("Logging in...(1/11) - Getting login entry point");
+            final String LOGIN_ENTRY_URL = "https://1.tongji.edu.cn/api/ssoservice/system/loginIn";
             final HttpRequest baseRequest = HttpRequest.newBuilder()
-                    .uri(java.net.URI.create(LOGIN_URL))
+                    .uri(java.net.URI.create(LOGIN_ENTRY_URL))
                     .header("referer", "https://1.tongji.edu.cn/ssologin")
                     .GET()
                     .build();
@@ -35,14 +49,15 @@ public class NetworkHelper {
             final String baseRedirect = baseResponse.headers().map().get("location").getFirst();
             final String baseSetCookie = baseResponse.headers().map().get("set-cookie").getFirst();
 
-            final String baseState = baseRedirect.split("state=")[1].split("&")[0];
-            final String baseClientId = baseRedirect.split("client_id=")[1].split("&")[0];
-            final String baseRedirectUri = baseRedirect.split("redirect_uri=")[1].split("&")[0];
+//            final String baseState = baseRedirect.split("state=")[1].split("&")[0];
+//            final String baseClientId = baseRedirect.split("client_id=")[1].split("&")[0];
+//            final String baseRedirectUri = baseRedirect.split("redirect_uri=")[1].split("&")[0];
 
             final String baseJsessionid = baseSetCookie.split("JSESSIONID=")[1].split(";")[0];
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(2/11) - Redirecting to SSO login page");
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(baseRedirect))
                     .header("referer", "https://1.tongji.edu.cn/")
@@ -61,6 +76,7 @@ public class NetworkHelper {
             for (String setCookie : setCookies) {
                 if(setCookie.contains("SESSION=")) {
                     session = setCookie.split("SESSION=")[1].split(";")[0];
+                    break;
                 }
             }
 
@@ -70,6 +86,7 @@ public class NetworkHelper {
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(3/11) - Accessing SSO login page");
             final HttpRequest finalRequest = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(redirectUrl))
                     .header("referer", "https://1.tongji.edu.cn/")
@@ -81,6 +98,7 @@ public class NetworkHelper {
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(4/11) - Getting authentication chain code");
             final String CHAIN_URL = "https://iam.tongji.edu.cn/idp/authcenter/ActionAuthChain?entityId=" + entityID + "&authnLcKey=" + authnLcKey;
             final HttpRequest chainRequest = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(CHAIN_URL))
@@ -95,12 +113,12 @@ public class NetworkHelper {
 
             Thread.sleep(REQUEST_DELAY_MS);
 
-            final String LOGIN_URL = "https://iam.tongji.edu.cn/idp/authcenter/ActionAuthChain?authnLcKey=" + authnLcKey;
+            final String LOGIN_URL = "https://iam.tongji.edu.cn:443/idp/authcenter/ActionAuthChain?authnLcKey=" + authnLcKey;
 
             Map<Object, Object> formData = Map.of(
                     "j_username", username,
                     "j_password", RSAUtil.encrypt(password, RSAUtil.RSA_PUBLIC_KEY),
-                    "j_checkcode", "%E8%AF%B7%E8%BE%93%E5%85%A5%E9%AA%8C%E8%AF%81%E7%A0%81",
+                    "j_checkcode", "%E8%AF%B7%E8%BE%93%E5%85%A5%E9%AA%8C%E8%AF%81%E7%A0%81", //todo captcha?
                     "op", "login",
                     "spAuthChainCode", spAuthChainCode,
                     "authnLcKey", authnLcKey
@@ -112,20 +130,25 @@ public class NetworkHelper {
                             URLEncoder.encode(entry.getValue().toString(), StandardCharsets.UTF_8))
                     .collect(Collectors.joining("&"));
 
+            LOG.info("Logging in...(5/11) - Submitting login form");
             final HttpRequest loginRequest = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(LOGIN_URL))
-                    .header("referer", "https://iam.tongji.edu.cn/idp/authcenter/ActionAuthChain?entityId=" + entityID + "&authnLcKey=" + authnLcKey)
+                    .header("referer", CHAIN_URL)
                     .header("cookie", "_idp_authn_lc_key=" + authnLcKey + "; SESSION=" + session + "; x=x")
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .POST(HttpRequest.BodyPublishers.ofString(formBody))
                     .build();
 
             final var loginResponse = client.send(loginRequest, HttpResponse.BodyHandlers.ofString());
+            if (Objects.equals(JSONObject.parseObject(loginResponse.body()).getString("loginFailed"), "true")) {
+                throw new RuntimeException("Login failed: " + JSONObject.parseObject(loginResponse.body()).getString("message"));
+            }
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(6/11) - Following login redirect");
             final HttpRequest loginRequestSecond = HttpRequest.newBuilder()
-                    .uri(java.net.URI.create("https://iam.tongji.edu.cn/idp/AuthnEngine?currentAuth=urn_oasis_names_tc_SAML_2.0_ac_classes_BAMUsernamePassword&authnLcKey=" + authnLcKey + "&entityId=" + entityID))
+                    .uri(java.net.URI.create("https://iam.tongji.edu.cn:443/idp/AuthnEngine?currentAuth=urn_oasis_names_tc_SAML_2.0_ac_classes_BAMUsernamePassword&authnLcKey=" + authnLcKey + "&entityId=" + entityID))
                     .header("referer", "https://iam.tongji.edu.cn/idp/authcenter/ActionAuthChain?entityId=" + entityID + "&authnLcKey=" + authnLcKey)
                     .header("cookie", "_idp_authn_lc_key=" + authnLcKey + "; SESSION=" + session + "; x=x")
                     .header("Content-Type", "application/x-www-form-urlencoded")
@@ -134,10 +157,11 @@ public class NetworkHelper {
 
             final var loginResponseSecond = client.send(loginRequestSecond, HttpResponse.BodyHandlers.ofString());
             final String idpSession = loginResponseSecond.headers().map().get("set-cookie").getFirst().split("_idp_session=")[1].split(";")[0];
-            final String loginRedirect = loginResponseSecond.headers().map().get("location").getFirst();
+//            final String loginRedirect = loginResponseSecond.headers().map().get("location").getFirst();
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(7/11) - Accessing post-login redirect");
             final HttpRequest jesessidRequest = HttpRequest.newBuilder()
                     .uri(java.net.URI.create("https://iam.tongji.edu.cn/idp/profile/OAUTH2/AuthorizationCode/SSO?authnLcKey=" + authnLcKey + "&entityId=" + entityID))
                     .header("referer", "https://iam.tongji.edu.cn/idp/authcenter/ActionAuthChain?entityId=" + entityID + "&authnLcKey=" + authnLcKey)
@@ -150,6 +174,7 @@ public class NetworkHelper {
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(8/11) - Following JSESSIONID redirect");
             final HttpRequest finalJessidRequest = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(jsessidRedirect))
                     .header("referer", "https://iam.tongji.edu.cn/")
@@ -162,6 +187,7 @@ public class NetworkHelper {
             for (String s : finalJsessidResponse.headers().map().get("set-cookie")) {
                 if(s.contains("JSESSIONID=")) {
                     finalJsesId = s.split("JSESSIONID=")[1].split(";")[0];
+                    break;
                 }
             }
             final String tokenRedirect = finalJsessidResponse.headers().map().get("location").getFirst();
@@ -175,6 +201,7 @@ public class NetworkHelper {
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(9/11) - Accessing token redirect");
             final HttpRequest ssidRedirectRequest = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(tokenRedirect))
                     .header("cookie", "JSESSIONID=" + finalJsesId)
@@ -186,16 +213,18 @@ public class NetworkHelper {
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(10/11) - Following token redirect");
             final HttpRequest ssidRedirectRequestSecond = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(ssidRedirect))
                     .header("cookie", "JSESSIONID=" + finalJsesId)
                     .GET()
                     .build();
 
-            var ssidRedirectResponseSecond = client.send(ssidRedirectRequestSecond, HttpResponse.BodyHandlers.ofString());
+            client.send(ssidRedirectRequestSecond, HttpResponse.BodyHandlers.discarding());
 
             Thread.sleep(REQUEST_DELAY_MS);
 
+            LOG.info("Logging in...(11/11) - Finalizing login and getting session cookie");
             final HttpRequest finalSsidRequest = HttpRequest.newBuilder()
                     .uri(java.net.URI.create("https://1.tongji.edu.cn/api/sessionservice/session/login"))
 //                    .header("referer", tokenRedirect)
@@ -208,13 +237,20 @@ public class NetworkHelper {
             final var finalSsidResponse = client.send(finalSsidRequest, HttpResponse.BodyHandlers.ofString());
             final String finalSessionId = finalSsidResponse.headers().map().get("set-cookie").getFirst().split("sessionid=")[1].split(";")[0];
 
+            LOG.info("Login successful for user {}", username);
             return getUserFromCookie("JSESSIONID=" + finalJsesId + "; sessionid=" + finalSessionId);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
+    public static CompletableFuture<User> getUserFromCookieAsync(String cookie) {
+        return CompletableFuture.supplyAsync(() -> getUserFromCookie(cookie), EXECUTOR);
+    }
+
     public static User getUserFromCookie(String cookie) {
+        LOG.info("Getting user info from cookie");
+        final String USER_INFO_URL = "https://1.tongji.edu.cn/api/sessionservice/session/getSessionUser";
         try (final HttpClient client = HttpClient.newBuilder().build()) {
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(USER_INFO_URL))
@@ -225,7 +261,7 @@ public class NetworkHelper {
             final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             final JSONObject data = JSONObject.parseObject(response.body()).getJSONObject("data");
-
+            LOG.info("User info retrieved successfully");
             return new User(data, cookie);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
@@ -233,6 +269,7 @@ public class NetworkHelper {
     }
 
     public static List<Round> getRounds(User user) {
+        final String ROUNDS_URL = "https://1.tongji.edu.cn/api/electionservice/student/getRounds?projectId=1";
         try (final HttpClient client = HttpClient.newBuilder().build()) {
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(ROUNDS_URL))
