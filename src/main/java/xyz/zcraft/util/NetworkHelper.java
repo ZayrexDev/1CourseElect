@@ -4,6 +4,9 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import org.apache.logging.log4j.Logger;
 import xyz.zcraft.User;
+import xyz.zcraft.elect.Course;
+import xyz.zcraft.elect.CourseData;
+import xyz.zcraft.elect.CourseType;
 import xyz.zcraft.elect.Round;
 
 import java.io.IOException;
@@ -13,22 +16,15 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class NetworkHelper {
     private static final Logger LOG = org.apache.logging.log4j.LogManager.getLogger(NetworkHelper.class);
     private static final long REQUEST_DELAY_MS = 50;
-    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
-
-    public static CompletableFuture<User> getUserFromPasswordAsync(String username, String password) {
-        return CompletableFuture.supplyAsync(() -> getUserFromPassword(username, password), EXECUTOR);
-    }
 
     public static User getUserFromPassword(String username, String password) {
         try (final HttpClient client = HttpClient.newBuilder()
@@ -74,13 +70,13 @@ public class NetworkHelper {
 
             String session = null;
             for (String setCookie : setCookies) {
-                if(setCookie.contains("SESSION=")) {
+                if (setCookie.contains("SESSION=")) {
                     session = setCookie.split("SESSION=")[1].split(";")[0];
                     break;
                 }
             }
 
-            if(session == null) {
+            if (session == null) {
                 throw new RuntimeException("Failed to extract cookies");
             }
 
@@ -185,7 +181,7 @@ public class NetworkHelper {
             final var finalJsessidResponse = client.send(finalJessidRequest, HttpResponse.BodyHandlers.ofString());
             String finalJsesId = null;
             for (String s : finalJsessidResponse.headers().map().get("set-cookie")) {
-                if(s.contains("JSESSIONID=")) {
+                if (s.contains("JSESSIONID=")) {
                     finalJsesId = s.split("JSESSIONID=")[1].split(";")[0];
                     break;
                 }
@@ -195,7 +191,7 @@ public class NetworkHelper {
             final String uid = tokenRedirect.split("uid=")[1].split("&")[0];
             final String ts = tokenRedirect.split("ts=")[1].split("&")[0];
 
-            if(finalJsesId == null) {
+            if (finalJsesId == null) {
                 throw new RuntimeException("Failed to extract final JSESSIONID");
             }
 
@@ -231,7 +227,7 @@ public class NetworkHelper {
                     .header("origin", "https://1.tongji.edu.cn")
                     .header("priority", "u=1, i")
                     .header("cookie", "JSESSIONID=" + finalJsesId)
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"uid\":\"" + uid + "\",\"token\":\"" + token +  "\",\"ts\":\"" + ts + "\"}"))
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"uid\":\"" + uid + "\",\"token\":\"" + token + "\",\"ts\":\"" + ts + "\"}"))
                     .build();
 
             final var finalSsidResponse = client.send(finalSsidRequest, HttpResponse.BodyHandlers.ofString());
@@ -242,10 +238,6 @@ public class NetworkHelper {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static CompletableFuture<User> getUserFromCookieAsync(String cookie) {
-        return CompletableFuture.supplyAsync(() -> getUserFromCookie(cookie), EXECUTOR);
     }
 
     public static User getUserFromCookie(String cookie) {
@@ -261,8 +253,9 @@ public class NetworkHelper {
             final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             final JSONObject data = JSONObject.parseObject(response.body()).getJSONObject("data");
-            LOG.info("User info retrieved successfully");
-            return new User(data, cookie);
+            final User user = new User(data, cookie);
+            LOG.info("User {} info retrieved successfully", user.getUid());
+            return user;
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -280,6 +273,64 @@ public class NetworkHelper {
             final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             return JSONArray.parseArray(JSONObject.parseObject(response.body()).getJSONArray("data").toJSONString(), Round.class);
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static List<Course> getRoundCourses(User user, int roundId) {
+        final String COURSES_URL = "https://1.tongji.edu.cn/api/electionservice/student/" + roundId + "/getDataBk";
+        try (final HttpClient client = HttpClient.newBuilder().build()) {
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(COURSES_URL))
+                    .header("Cookie", user.getCookie())
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            final JSONObject coursesObject = JSONObject.parseObject(response.body()).getJSONObject("data");
+
+            final LinkedList<Course> courseList = new LinkedList<>();
+
+            final LinkedList<String> roundCourseIds = new LinkedList<>();
+            final JSONArray roundCoursesArray = coursesObject.getJSONArray("roundCourses");
+            for (int i = 0; i < roundCoursesArray.size(); i++) {
+                roundCourseIds.add(roundCoursesArray.getString(i));
+            }
+
+            final LinkedList<String> completedCourseIds = new LinkedList<>();
+            final JSONArray completedCoursesArray = coursesObject.getJSONArray("completedCourses");
+            for (int i = 0; i < completedCoursesArray.size(); i++) {
+                completedCourseIds.add(completedCoursesArray.getJSONObject(i).getJSONObject("course").getString("courseCode"));
+            }
+
+            final JSONArray planCourses = coursesObject.getJSONArray("planCourses");
+            for (int i = 0; i < planCourses.size(); i++) {
+                final JSONObject courseObject = planCourses.getJSONObject(i).getJSONObject("course");
+                Course course = new Course(CourseType.PLAN, -1
+                        , courseObject.to(CourseData.class), null);
+
+                if (roundCourseIds.contains(course.getCourseData().courseCode())) {
+                    course.setCompleteStatus(completedCourseIds.contains(course.getCourseData().courseCode()) ? 1 :0);
+                    courseList.add(course);
+                }
+            }
+
+            final JSONArray publicCourses = coursesObject.getJSONArray("publicCourses");
+            for (int i = 0; i < publicCourses.size(); i++) {
+                final JSONObject courseObject = publicCourses.getJSONObject(i);
+                final JSONObject courseDataObject = courseObject.getJSONObject("course");
+                Course course = new Course(CourseType.PUBLIC, -1
+                        , courseDataObject.to(CourseData.class), courseObject.getString("tag"));
+
+                if (roundCourseIds.contains(course.getCourseData().courseCode())){
+                    course.setCompleteStatus(completedCourseIds.contains(course.getCourseData().courseCode()) ? 1 :0);
+                    courseList.add(course);
+                }
+            }
+
+            return courseList;
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }

@@ -14,7 +14,8 @@ public class Main {
         final var session = new Login().requestLogin();
 
         final User user = session.getKey();
-        final Integer roundId = session.getValue();
-        LOG.info("Login successful: user={}, roundId={}", user, roundId);
+        final var roundId = session.getValue();
+        LOG.info("Login successful: user.uid={}, courses.size={}", user.getUid(), roundId.size());
+
     }
 }

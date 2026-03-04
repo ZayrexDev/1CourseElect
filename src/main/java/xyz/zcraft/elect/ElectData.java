@@ -9,8 +9,8 @@ import java.util.LinkedList;
 @Getter @RequiredArgsConstructor
 public class ElectData {
     private final int roundId;
-    private final LinkedList<Course> electCourses = new LinkedList<>();
-    private final LinkedList<Course> withdrawCourses = new LinkedList<>();
+    private final LinkedList<CourseData> electCourses = new LinkedList<>();
+    private final LinkedList<CourseData> withdrawCourses = new LinkedList<>();
 
     public String toDataString() {
         JSONObject object = new JSONObject();
