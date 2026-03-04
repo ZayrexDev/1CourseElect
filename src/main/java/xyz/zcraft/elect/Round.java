@@ -1,17 +1,12 @@
 package xyz.zcraft.elect;
 
-public record Round(int id,
-                    int calendarId,
-                    int turn,
-                    String name,
-                    int openFlag,
-                    String beginTime,
-                    String endTime,
-                    String calendarName,
-                    String remark) {
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-    @Override
-    public String toString() {
-        return id + "-"  + turn + "-" + calendarName + "-" + name;
-    }
+import java.util.List;
+
+@Data @AllArgsConstructor
+public class Round {
+    private RoundData roundData;
+    private List<Course> courseList;
 }

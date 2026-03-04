@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import xyz.zcraft.User;
 import xyz.zcraft.elect.Course;
 import xyz.zcraft.elect.Round;
+import xyz.zcraft.elect.RoundData;
 import xyz.zcraft.util.AsyncHelper;
 import xyz.zcraft.util.NetworkHelper;
 
@@ -26,7 +27,7 @@ public class Login {
     private JTextField uidField;
     private JButton buttonOk;
     private JPanel rootPane;
-    private JComboBox<Round> roundCombo;
+    private JComboBox<RoundData> roundCombo;
     private JTextArea roundDetail;
     private JLabel openStatusLabel;
     private JScrollPane detailScroll;
@@ -43,6 +44,7 @@ public class Login {
     private JFrame jFrame;
 
     private User user = null;
+    private RoundData roundData = null;
 
     public Login() {
         setUpListeners();
@@ -63,7 +65,7 @@ public class Login {
                     final String cookie;
                     try {
                         cookie = Files.readString(cachePath);
-                        passwordField.setText(cookie);
+                        uidField.setText("加载缓存中...");
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -79,6 +81,8 @@ public class Login {
                     }
                     uidField.setText("");
                     passwordField.setText("");
+                    uidField.setEnabled(true);
+                    passwordField.setEnabled(true);
                     return null;
                 })
                 .thenAccept(u -> {
@@ -117,7 +121,7 @@ public class Login {
         roundCombo.addActionListener(this::roundSelected);
     }
 
-    public Map.Entry<User, List<Course>> requestLogin() {
+    public Map.Entry<User, Round> requestLogin() {
         jFrame.setVisible(true);
 
         try {
@@ -128,7 +132,7 @@ public class Login {
             throw new RuntimeException(e);
         }
 
-        return Map.entry(user, courses);
+        return Map.entry(user, new Round(roundData, courses));
     }
 
     private void proceed(ActionEvent actionEvent) {
@@ -190,17 +194,18 @@ public class Login {
                     });
         } else if (!courseListReady) {
             roundCombo.setEnabled(false);
-            statusInfoLabel.setText("登录至 " + user.getUid() + "-" + user.getName() + " | 获取课程数据中");
-            final Round round = (Round) roundCombo.getSelectedItem();
 
-            if (round == null) {
+            statusInfoLabel.setText("登录至 " + user.getUid() + "-" + user.getName() + " | 获取课程数据中");
+            this.roundData = (RoundData) roundCombo.getSelectedItem();
+
+            if (roundData == null) {
                 JOptionPane.showMessageDialog(jFrame, "请选择一个选课轮次", "错误", JOptionPane.ERROR_MESSAGE);
                 buttonOk.setEnabled(true);
                 roundCombo.setEnabled(true);
                 return;
             }
 
-            AsyncHelper.supplyAsync(() -> NetworkHelper.getRoundCourses(user, round.id()))
+            AsyncHelper.supplyAsync(() -> NetworkHelper.getRoundCourses(user, roundData.id()))
                     .thenAccept(courses -> {
                         this.courses = courses;
                         courseListReady = true;
@@ -225,16 +230,16 @@ public class Login {
     }
 
     private void roundSelected(ActionEvent actionEvent) {
-        final Round round = (Round) roundCombo.getSelectedItem();
-        if (round != null) {
-            openStatusLabel.setText("开放: " + (round.openFlag() == 1 ? "√" : "×"));
+        final RoundData roundData = (RoundData) roundCombo.getSelectedItem();
+        if (roundData != null) {
+            openStatusLabel.setText("开放: " + (roundData.openFlag() == 1 ? "√" : "×"));
             roundDetail.setText(String.format(
                     """
                             %s %s
                             选课开放时间：%s-%s
                             选课说明：
                             %s
-                            """, round.calendarName(), round.name(), round.beginTime(), round.endTime(), round.remark()));
+                            """, roundData.calendarName(), roundData.name(), roundData.beginTime(), roundData.endTime(), roundData.remark()));
             detailScroll.getHorizontalScrollBar().setValue(0);
         }
     }

@@ -4,10 +4,7 @@ import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import org.apache.logging.log4j.Logger;
 import xyz.zcraft.User;
-import xyz.zcraft.elect.Course;
-import xyz.zcraft.elect.CourseData;
-import xyz.zcraft.elect.CourseType;
-import xyz.zcraft.elect.Round;
+import xyz.zcraft.elect.*;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -25,11 +22,12 @@ import java.util.stream.Collectors;
 public class NetworkHelper {
     private static final Logger LOG = org.apache.logging.log4j.LogManager.getLogger(NetworkHelper.class);
     private static final long REQUEST_DELAY_MS = 50;
+    private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     public static User getUserFromPassword(String username, String password) {
         try (final HttpClient client = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NEVER)
-                .connectTimeout(Duration.ofSeconds(10))
+                .connectTimeout(TIMEOUT)
                 .build()) {
             LOG.info("Starting login process for user {}", username);
             LOG.info("Logging in...(1/11) - Getting login entry point");
@@ -243,7 +241,7 @@ public class NetworkHelper {
     public static User getUserFromCookie(String cookie) {
         LOG.info("Getting user info from cookie");
         final String USER_INFO_URL = "https://1.tongji.edu.cn/api/sessionservice/session/getSessionUser";
-        try (final HttpClient client = HttpClient.newBuilder().build()) {
+        try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(USER_INFO_URL))
                     .header("Cookie", cookie)
@@ -261,9 +259,9 @@ public class NetworkHelper {
         }
     }
 
-    public static List<Round> getRounds(User user) {
+    public static List<RoundData> getRounds(User user) {
         final String ROUNDS_URL = "https://1.tongji.edu.cn/api/electionservice/student/getRounds?projectId=1";
-        try (final HttpClient client = HttpClient.newBuilder().build()) {
+        try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(ROUNDS_URL))
                     .header("Cookie", user.getCookie())
@@ -272,7 +270,7 @@ public class NetworkHelper {
 
             final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            return JSONArray.parseArray(JSONObject.parseObject(response.body()).getJSONArray("data").toJSONString(), Round.class);
+            return JSONArray.parseArray(JSONObject.parseObject(response.body()).getJSONArray("data").toJSONString(), RoundData.class);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -280,7 +278,7 @@ public class NetworkHelper {
 
     public static List<Course> getRoundCourses(User user, int roundId) {
         final String COURSES_URL = "https://1.tongji.edu.cn/api/electionservice/student/" + roundId + "/getDataBk";
-        try (final HttpClient client = HttpClient.newBuilder().build()) {
+        try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(COURSES_URL))
                     .header("Cookie", user.getCookie())
@@ -308,7 +306,7 @@ public class NetworkHelper {
             final JSONArray planCourses = coursesObject.getJSONArray("planCourses");
             for (int i = 0; i < planCourses.size(); i++) {
                 final JSONObject courseObject = planCourses.getJSONObject(i).getJSONObject("course");
-                Course course = new Course(CourseType.PLAN, -1
+                Course course = new Course(Course.Type.PLAN, -1
                         , courseObject.to(CourseData.class), null);
 
                 if (roundCourseIds.contains(course.getCourseData().courseCode())) {
@@ -321,7 +319,7 @@ public class NetworkHelper {
             for (int i = 0; i < publicCourses.size(); i++) {
                 final JSONObject courseObject = publicCourses.getJSONObject(i);
                 final JSONObject courseDataObject = courseObject.getJSONObject("course");
-                Course course = new Course(CourseType.PUBLIC, -1
+                Course course = new Course(Course.Type.PUBLIC, -1
                         , courseDataObject.to(CourseData.class), courseObject.getString("tag"));
 
                 if (roundCourseIds.contains(course.getCourseData().courseCode())){
@@ -331,6 +329,26 @@ public class NetworkHelper {
             }
 
             return courseList;
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static List<TeachClass> getTeachClasses(User user, Round round, String courseCode) {
+        final String TEACH_CLASSES_URL = "https://1.tongji.edu.cn/api/electionservice/student/getTeachClass4Limit?roundId=" + round.getRoundData().id() +
+                "&courseCode=" + courseCode + "&studentId=" + user.getUid() +
+                "&calendarId=" + round.getRoundData().calendarId() + "&showCourseCode=false";
+        try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(TEACH_CLASSES_URL))
+                    .header("Cookie", user.getCookie())
+                    .header("Referer", "https://1.tongji.edu.cn/studentElect")
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            return JSONArray.parseArray(JSONObject.parseObject(response.body()).getJSONArray("data").toJSONString(), TeachClass.class);
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }

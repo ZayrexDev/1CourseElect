@@ -8,8 +8,12 @@ import lombok.Setter;
 @Setter
 @AllArgsConstructor
 public class Course {
-    private CourseType courseType;
+    private Type courseType;
     private int completeStatus;
     private CourseData courseData;
     private String tag;
+
+    public enum Type {
+        PLAN, PUBLIC
+    }
 }

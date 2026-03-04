@@ -1,4 +1,6 @@
-package xyz.zcraft.elect;
+package xyz.zcraft.util;
+
+import xyz.zcraft.elect.ElectRequest;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
@@ -8,13 +10,21 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
 
-public class ElectBodyBuilder {
+public class ElectRequestBodyBuilder {
     private final String processedKey;
     private final String processedIv;
+    private final long overrideTime;
 
-    public ElectBodyBuilder(String aesKey, String aesIv) {
+    public ElectRequestBodyBuilder(String aesKey, String aesIv, long overrideTime) {
         processedKey = paramHandler(aesKey);
         processedIv = paramHandler(aesIv);
+        this.overrideTime = overrideTime;
+    }
+
+    public ElectRequestBodyBuilder(String aesKey, String aesIv) {
+        processedKey = paramHandler(aesKey);
+        processedIv = paramHandler(aesIv);
+        this.overrideTime = System.currentTimeMillis();
     }
 
     public String buildRequestBody(ElectRequest request) throws Exception {
@@ -24,7 +34,12 @@ public class ElectBodyBuilder {
     }
 
     private String getCipherBody(ElectRequest request) throws Exception {
-        String plainText = request.studentId() + "&" + request.courseCode() + "&" + request.teachClassId() + "&" + request.calendarId() + "&" + request.currentTime() + "&" + request.electData();
+        String plainText = request.getStudentId() +
+                "&" + request.getCourseCode() +
+                "&" + request.getTeachClassId() +
+                "&" + request.getCalendarId() +
+                "&" + overrideTime +
+                "&" + request.generateElectData();
         String urlEncodedText = encodeURIComponent(plainText);
 
         SecretKeySpec keySpec = new SecretKeySpec(processedKey.getBytes(StandardCharsets.UTF_8), "AES");
@@ -37,7 +52,12 @@ public class ElectBodyBuilder {
     }
 
     private String getCheckCode(ElectRequest request) throws Exception {
-        String plainText = request.studentId() + "+" + request.courseCode() + "+" + request.teachClassId() + "+" + request.calendarId() + "+" + request.currentTime() + "+" + request.electData();
+        String plainText = request.getStudentId() +
+                "+" + request.getCourseCode() +
+                "+" + request.getTeachClassId() +
+                "+" + request.getCalendarId() +
+                "+" + overrideTime +
+                "+" + request.generateElectData();
         MessageDigest md5 = MessageDigest.getInstance("MD5");
         byte[] digest = md5.digest(plainText.getBytes(StandardCharsets.UTF_8));
         StringBuilder hexString = new StringBuilder();
