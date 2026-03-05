@@ -76,10 +76,6 @@ public class CourseElect {
     }
 
     private void submit(ActionEvent e) {
-        if (requestMainClass == null) {
-            JOptionPane.showMessageDialog(jFrame, "请设置请求主体课程", "错误", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
         synchronized (LOCK) {
             LOCK.notifyAll();
         }
@@ -88,9 +84,23 @@ public class CourseElect {
     private void getCourse(ActionEvent e) {
         searchBtn.setEnabled(false);
         courseIdField.setEnabled(false);
-        final String courseId = courseIdField.getText();
+        String courseId = courseIdField.getText().toUpperCase().trim();
+        if(courseId.isBlank() || !courseId.matches("^[A-Z]{3}\\d{4}(\\d{2})?$")) {
+            getResultLabel.setText("课程编号格式不正确");
+            searchBtn.setEnabled(true);
+            courseIdField.setEnabled(true);
+            return;
+        }
+
+        if(courseId.length() == 9) {
+            jumpField.setText(courseId);
+            courseIdField.setText(courseId.substring(0, 7));
+            courseId = courseIdField.getText();
+        }
+
+        String finalCourseId = courseId;
         round.getCourseList().stream()
-                .filter(c -> Objects.equals(c.getCourseData().newCourseCode(), courseId))
+                .filter(c -> Objects.equals(c.getCourseData().newCourseCode(), finalCourseId))
                 .findFirst()
                 .ifPresentOrElse(c -> {
                     final CourseData courseData = c.getCourseData();
@@ -284,6 +294,7 @@ public class CourseElect {
 
         request.setElectClasses(toElectResult);
         request.setWithdrawClasses(toQuitResult);
+        request.setMainClass(requestMainClass);
 
         return request;
     }

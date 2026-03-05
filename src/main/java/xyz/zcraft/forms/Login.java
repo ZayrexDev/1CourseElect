@@ -79,6 +79,7 @@ public class Login {
                     } catch (IOException ex) {
                         LOG.error("Failed to delete cache file", ex);
                     }
+                    statusInfoLabel.setText("缓存加载失败");
                     uidField.setText("");
                     passwordField.setText("");
                     uidField.setEnabled(true);

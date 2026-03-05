@@ -2,6 +2,7 @@ package xyz.zcraft;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import xyz.zcraft.forms.ElectRequester;
 import xyz.zcraft.forms.Login;
 
 
@@ -17,5 +18,7 @@ public class Main {
         final var round = session.getValue();
         LOG.info("Login successful: user.uid={}, round.id={}", user.getUid(), round.getRoundData().id());
 
+        ElectRequester electRequester = new ElectRequester(user, round);
+        electRequester.show();
     }
 }

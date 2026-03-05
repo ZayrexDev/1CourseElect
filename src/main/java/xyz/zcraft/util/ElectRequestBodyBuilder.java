@@ -83,15 +83,13 @@ public class ElectRequestBodyBuilder {
 
     private static String encodeURIComponent(String s) {
         try {
-            final String s1 = URLEncoder.encode(s, StandardCharsets.UTF_8)
+            return URLEncoder.encode(s, StandardCharsets.UTF_8)
                     .replaceAll("\\+", "%20")
                     .replaceAll("%21", "!")
                     .replaceAll("%27", "'")
                     .replaceAll("%28", "(")
                     .replaceAll("%29", ")")
                     .replaceAll("%7E", "~");
-            System.out.println(s1);
-            return s1;
         } catch (Exception e) {
             throw new RuntimeException("Error encoding string", e);
         }

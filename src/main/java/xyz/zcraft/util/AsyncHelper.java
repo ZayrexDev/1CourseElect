@@ -11,4 +11,8 @@ public class AsyncHelper {
     public static <T> CompletableFuture<T> supplyAsync(Supplier<T> s) {
         return CompletableFuture.supplyAsync(s, EXECUTOR);
     }
+
+    public static void submit(Runnable r) {
+        EXECUTOR.submit(r);
+    }
 }

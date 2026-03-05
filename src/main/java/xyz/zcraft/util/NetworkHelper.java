@@ -1,5 +1,6 @@
 package xyz.zcraft.util;
 
+import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import org.apache.logging.log4j.Logger;
@@ -242,6 +243,7 @@ public class NetworkHelper {
         LOG.info("Getting user info from cookie");
         final String USER_INFO_URL = "https://1.tongji.edu.cn/api/sessionservice/session/getSessionUser";
         try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
+            LOG.info("Sending request to get user info");
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(USER_INFO_URL))
                     .header("Cookie", cookie)
@@ -262,6 +264,7 @@ public class NetworkHelper {
     public static List<RoundData> getRounds(User user) {
         final String ROUNDS_URL = "https://1.tongji.edu.cn/api/electionservice/student/getRounds?projectId=1";
         try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
+            LOG.info("Getting election rounds for user {}", user.getUid());
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(ROUNDS_URL))
                     .header("Cookie", user.getCookie())
@@ -270,7 +273,9 @@ public class NetworkHelper {
 
             final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            return JSONArray.parseArray(JSONObject.parseObject(response.body()).getJSONArray("data").toJSONString(), RoundData.class);
+            final List<RoundData> data = JSONArray.parseArray(JSONObject.parseObject(response.body()).getJSONArray("data").toJSONString(), RoundData.class);
+            LOG.info("Retrieved {} election rounds for user {}", data.size(), user.getUid());
+            return data;
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -279,6 +284,7 @@ public class NetworkHelper {
     public static List<Course> getRoundCourses(User user, int roundId) {
         final String COURSES_URL = "https://1.tongji.edu.cn/api/electionservice/student/" + roundId + "/getDataBk";
         try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
+            LOG.info("Getting courses for round {} and user {}", roundId, user.getUid());
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(COURSES_URL))
                     .header("Cookie", user.getCookie())
@@ -328,6 +334,7 @@ public class NetworkHelper {
                 }
             }
 
+            LOG.info("Retrieved {} courses for round {}", courseList.size(), roundId);
             return courseList;
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
@@ -339,6 +346,7 @@ public class NetworkHelper {
                 "&courseCode=" + courseCode + "&studentId=" + user.getUid() +
                 "&calendarId=" + round.getRoundData().calendarId() + "&showCourseCode=false";
         try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
+            LOG.info("Getting teach classes for course {} in round {}", courseCode, round.getRoundData().id());
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(java.net.URI.create(TEACH_CLASSES_URL))
                     .header("Cookie", user.getCookie())
@@ -348,8 +356,53 @@ public class NetworkHelper {
 
             final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            return JSONArray.parseArray(JSONObject.parseObject(response.body()).getJSONArray("data").toJSONString(), TeachClass.class);
+            final List<TeachClass> data = JSONArray.parseArray(JSONObject.parseObject(response.body()).getJSONArray("data").toJSONString(), TeachClass.class);
+            LOG.info("Retrieved {} teach classes for course {} in round {}", data.size(), courseCode, round.getRoundData().id());
+            return data;
         } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static ElectResult getElectResult(User user, Round round) {
+        final String ELECT_RESULT_URL = "https://1.tongji.edu.cn/api/electionservice/student/" + round.getRoundData().id() + "/electRes";
+        try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
+            LOG.info("Getting election result for round {}", round.getRoundData().id());
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(ELECT_RESULT_URL))
+                    .header("Cookie", user.getCookie())
+                    .header("Referer", "https://1.tongji.edu.cn/studentElect")
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            final var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            final ElectResult data = JSONObject.parseObject(response.body()).getJSONObject("data").to(ElectResult.class);
+            LOG.info("Election result: Success {} / Failed {}", data.successCourses().size(), data.failedReasons().size());
+            return data;
+        } catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static ElectResult sendElectRequest(User user, ElectRequest request) {
+        final String ELECT_URL = "https://1.tongji.edu.cn/api/electionservice/student/elect";
+        try (final HttpClient client = HttpClient.newBuilder().connectTimeout(TIMEOUT).build()) {
+            final var builder = new ElectRequestBodyBuilder(user.getAesKey(), user.getAesIv(), System.currentTimeMillis());
+            final String requestBody = builder.buildRequestBody(request);
+
+            LOG.info("Sending elect request");
+            final HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(java.net.URI.create(ELECT_URL))
+                    .header("Cookie", user.getCookie())
+                    .header("Referer", "https://1.tongji.edu.cn/studentElect")
+                    .header("Content-Type", "application/json;charset=UTF-8")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
+
+            final var r = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            return JSONObject.parseObject(r.body()).getJSONObject("data").to(ElectResult.class);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

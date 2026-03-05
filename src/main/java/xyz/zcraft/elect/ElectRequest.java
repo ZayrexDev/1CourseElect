@@ -9,11 +9,20 @@ import java.util.List;
 public class ElectRequest {
     private String studentId;
     private String courseCode;
-    private String teachClassId;
+    private long teachClassId;
     private String calendarId;
     private List<TeachClass> electClasses;
     private List<TeachClass> withdrawClasses;
     private int roundId;
+
+    public void setMainClass(TeachClass mainClass) {
+        this.mainClass = mainClass;
+        if(mainClass == null) return;
+        this.teachClassId = mainClass.teachClassId();
+        this.courseCode = mainClass.courseCode();
+    }
+
+    private TeachClass mainClass;
 
     public String generateElectData() {
         JSONObject object = new JSONObject();

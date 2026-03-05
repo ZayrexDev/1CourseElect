@@ -3,7 +3,7 @@
   <grid id="27dc6" binding="rootPane" layout-manager="GridLayoutManager" row-count="2" column-count="2" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
     <margin top="10" left="10" bottom="10" right="10"/>
     <constraints>
-      <xy x="20" y="20" width="856" height="480"/>
+      <xy x="20" y="20" width="735" height="480"/>
     </constraints>
     <properties/>
     <border type="none"/>
@@ -88,7 +88,7 @@
         <properties/>
         <border type="none" title="日志"/>
         <children>
-          <scrollpane id="ca214">
+          <scrollpane id="ca214" binding="logScroll">
             <constraints>
               <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false">
                 <preferred-size width="114514" height="114514"/>
@@ -101,7 +101,7 @@
                 <constraints/>
                 <properties>
                   <editable value="false"/>
-                  <text value="..."/>
+                  <text value=""/>
                 </properties>
               </component>
             </children>
@@ -140,7 +140,7 @@
                       <text value="定时发送"/>
                     </properties>
                   </component>
-                  <component id="ed4c7" class="javax.swing.JSpinner" binding="fixedTimeCountSpin">
+                  <component id="9000d" class="javax.swing.JFormattedTextField" binding="fixedTimeCountField">
                     <constraints>
                       <grid row="0" column="5" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="1" indent="0" use-parent-layout="false">
                         <preferred-size width="50" height="-1"/>
@@ -148,6 +148,7 @@
                     </constraints>
                     <properties>
                       <enabled value="false"/>
+                      <text value="1"/>
                     </properties>
                   </component>
                   <component id="c3e90" class="javax.swing.JLabel">
@@ -166,7 +167,7 @@
                       <text value="发送间隔(ms)："/>
                     </properties>
                   </component>
-                  <component id="a6919" class="javax.swing.JSpinner" binding="fixedTimeDelaySpin">
+                  <component id="366e8" class="javax.swing.JFormattedTextField" binding="fixedTimeDelayField">
                     <constraints>
                       <grid row="0" column="7" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="1" indent="0" use-parent-layout="false">
                         <preferred-size width="100" height="-1"/>
@@ -174,6 +175,7 @@
                     </constraints>
                     <properties>
                       <enabled value="false"/>
+                      <text value="500"/>
                     </properties>
                   </component>
                   <hspacer id="89c06">
@@ -199,7 +201,7 @@
                   </component>
                 </children>
               </grid>
-              <grid id="2929a" layout-manager="GridLayoutManager" row-count="1" column-count="6" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
+              <grid id="2929a" layout-manager="GridLayoutManager" row-count="1" column-count="7" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
                 <margin top="5" left="5" bottom="5" right="5"/>
                 <constraints>
                   <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
@@ -215,43 +217,55 @@
                       <text value="发送！！"/>
                     </properties>
                   </component>
-                  <component id="825c0" class="javax.swing.JSpinner" binding="manualCountSpin">
+                  <component id="3330e" class="javax.swing.JFormattedTextField" binding="manualCountField">
                     <constraints>
-                      <grid row="0" column="3" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="1" indent="0" use-parent-layout="false">
+                      <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="1" indent="0" use-parent-layout="false">
                         <preferred-size width="50" height="-1"/>
                       </grid>
                     </constraints>
-                    <properties/>
+                    <properties>
+                      <text value="1"/>
+                    </properties>
                   </component>
                   <component id="f7162" class="javax.swing.JLabel">
                     <constraints>
-                      <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                      <grid row="0" column="3" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
                     </constraints>
                     <properties>
                       <text value="发送次数："/>
                     </properties>
                   </component>
-                  <component id="b903f" class="javax.swing.JLabel" binding="manualDelaySpin">
+                  <component id="b903f" class="javax.swing.JLabel">
                     <constraints>
-                      <grid row="0" column="4" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                      <grid row="0" column="5" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
                     </constraints>
                     <properties>
                       <text value="发送间隔(ms)："/>
                     </properties>
                   </component>
-                  <component id="b46a2" class="javax.swing.JSpinner" default-binding="true">
+                  <component id="2b709" class="javax.swing.JFormattedTextField" binding="manualDelayField">
                     <constraints>
-                      <grid row="0" column="5" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="1" indent="0" use-parent-layout="false">
+                      <grid row="0" column="6" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="1" indent="0" use-parent-layout="false">
                         <preferred-size width="100" height="-1"/>
                       </grid>
                     </constraints>
-                    <properties/>
+                    <properties>
+                      <text value="500"/>
+                    </properties>
                   </component>
                   <hspacer id="86816">
                     <constraints>
-                      <grid row="0" column="1" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                      <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
                     </constraints>
                   </hspacer>
+                  <component id="c3f7a" class="javax.swing.JButton" binding="manualStopBtn">
+                    <constraints>
+                      <grid row="0" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                    </constraints>
+                    <properties>
+                      <text value="停止"/>
+                    </properties>
+                  </component>
                 </children>
               </grid>
               <grid id="2925c" layout-manager="GridLayoutManager" row-count="1" column-count="6" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
@@ -283,7 +297,7 @@
                       <text value="检测间隔(min)："/>
                     </properties>
                   </component>
-                  <component id="a2296" class="javax.swing.JSpinner" binding="emptyDelaySpin">
+                  <component id="287f9" class="javax.swing.JFormattedTextField" binding="emptyDelayField">
                     <constraints>
                       <grid row="0" column="5" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="1" indent="0" use-parent-layout="false">
                         <preferred-size width="100" height="-1"/>
@@ -291,6 +305,7 @@
                     </constraints>
                     <properties>
                       <enabled value="false"/>
+                      <text value="5"/>
                     </properties>
                   </component>
                   <component id="8a921" class="javax.swing.JLabel">
@@ -334,12 +349,12 @@
                   <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
                 </constraints>
               </vspacer>
-              <component id="a1fa2" class="javax.swing.JCheckBox" binding="deleteOnSuccessCheck">
+              <component id="d13ed" class="javax.swing.JButton" binding="textLogBtn" default-binding="true">
                 <constraints>
-                  <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="1" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
+                  <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
                 </constraints>
                 <properties>
-                  <text value="成功后删除"/>
+                  <text value="测试日志"/>
                 </properties>
               </component>
             </children>
