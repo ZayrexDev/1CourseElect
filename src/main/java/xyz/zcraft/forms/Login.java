@@ -2,7 +2,7 @@ package xyz.zcraft.forms;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import xyz.zcraft.User;
+import xyz.zcraft.elect.User;
 import xyz.zcraft.elect.Course;
 import xyz.zcraft.elect.Round;
 import xyz.zcraft.elect.RoundData;
@@ -95,7 +95,7 @@ public class Login {
                         cacheCheck.setSelected(true);
 
                         cacheCheck.setText("缓存已加载");
-                        statusInfoLabel.setText("登录成功: " + user.getName());
+                        statusInfoLabel.setText("登录至 " + user.getUid() + "-" + user.getName());
                         buttonOk.setText("获取选课轮次");
 
                         uidField.setEnabled(false);
@@ -148,7 +148,7 @@ public class Login {
             AsyncHelper.supplyAsync(() -> NetworkHelper.getUserFromPassword(uidField.getText(), String.copyValueOf(passwordField.getPassword())))
                     .thenAccept(u -> {
                         user = u;
-                        statusInfoLabel.setText("登录成功: " + user.getName());
+                        statusInfoLabel.setText("登录至 " + user.getUid() + "-" + user.getName());
 
                         if (cacheCheck.isSelected()) {
                             try {
@@ -174,7 +174,7 @@ public class Login {
                         return null;
                     });
         } else if (!roundDataReady) {
-            statusInfoLabel.setText("登录至 " + user.getName() + " | 获取选课轮次中...");
+            statusInfoLabel.setText("登录至 " + user.getUid() + "-" + user.getName() + " | 获取选课轮次中...");
             AsyncHelper.supplyAsync(() -> NetworkHelper.getRounds(user))
                     .thenAccept(rounds -> {
                         rounds.forEach(roundCombo::addItem);

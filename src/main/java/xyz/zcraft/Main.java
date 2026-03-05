@@ -2,6 +2,7 @@ package xyz.zcraft;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import xyz.zcraft.elect.User;
 import xyz.zcraft.forms.ElectRequester;
 import xyz.zcraft.forms.Login;
 

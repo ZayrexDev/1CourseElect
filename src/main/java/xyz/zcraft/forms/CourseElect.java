@@ -1,7 +1,7 @@
 package xyz.zcraft.forms;
 
 import org.apache.logging.log4j.Logger;
-import xyz.zcraft.User;
+import xyz.zcraft.elect.User;
 import xyz.zcraft.elect.CourseData;
 import xyz.zcraft.elect.ElectRequest;
 import xyz.zcraft.elect.Round;
@@ -39,6 +39,7 @@ public class CourseElect {
     private JButton jumpBtn;
     private JLabel requestMainLabel;
     private JButton setRequestMainBtn;
+    private JButton clearBtn;
     private JFrame jFrame;
     private boolean discarding = false;
     private DefaultListModel<TeachClass> courseClass = new DefaultListModel<>();
@@ -64,6 +65,7 @@ public class CourseElect {
         quitList.addListSelectionListener(this::quitSelected);
         submitBtn.addActionListener(this::submit);
         setRequestMainBtn.addActionListener(this::setRequestMain);
+        clearBtn.addActionListener(this::clearSearch);
     }
 
     private void setupFrame() {
@@ -104,7 +106,7 @@ public class CourseElect {
                 .findFirst()
                 .ifPresentOrElse(c -> {
                     final CourseData courseData = c.getCourseData();
-                    getResultLabel.setText(courseData.courseCode() + " - " + courseData.courseName());
+                    getResultLabel.setText(courseData.courseCode() + " - " + courseData.courseName() + " | 获取课程信息中...");
                     AsyncHelper.supplyAsync(() -> NetworkHelper.getTeachClasses(user, round, courseData.courseCode()))
                             .thenAccept(classes -> {
                                 courseClass = new DefaultListModel<>();
@@ -112,6 +114,7 @@ public class CourseElect {
                                 courseClassList.setModel(courseClass);
                                 searchBtn.setEnabled(true);
                                 courseIdField.setEnabled(true);
+                                getResultLabel.setText(courseData.courseCode() + " - " + courseData.courseName() + " | 共 " + classes.size() + " 个教学班");
                             }).exceptionally(ex -> {
                                 LOG.error("Exception threw when getting teach classes", ex);
                                 getResultLabel.setText("获取课程信息失败，请重试");
@@ -309,5 +312,10 @@ public class CourseElect {
             requestMainClass = selected;
             requestMainLabel.setText(requestMainClass.newTeachClassCode() + " - " + requestMainClass.courseName());
         }
+    }
+
+    private void clearSearch(ActionEvent e) {
+        courseIdField.setText("");
+        jumpField.setText("");
     }
 }

@@ -14,15 +14,14 @@ public class ElectRequest {
     private List<TeachClass> electClasses;
     private List<TeachClass> withdrawClasses;
     private int roundId;
+    private TeachClass mainClass;
 
     public void setMainClass(TeachClass mainClass) {
         this.mainClass = mainClass;
-        if(mainClass == null) return;
+        if (mainClass == null) return;
         this.teachClassId = mainClass.teachClassId();
         this.courseCode = mainClass.courseCode();
     }
-
-    private TeachClass mainClass;
 
     public String generateElectData() {
         JSONObject object = new JSONObject();
@@ -30,5 +29,20 @@ public class ElectRequest {
         object.put("elecClassList", electClasses);
         object.put("withdrawClassList", withdrawClasses);
         return object.toJSONString();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{").append(mainClass.newTeachClassCode()).append("}-选[");
+        for (TeachClass teachClass : electClasses) {
+            sb.append(teachClass.newTeachClassCode()).append(teachClass.courseName()).append(",");
+        }
+        sb.append("],退[");
+        for (TeachClass teachClass : withdrawClasses) {
+            sb.append(teachClass.newTeachClassCode()).append(teachClass.courseName()).append(",");
+        }
+        sb.append("]");
+        return sb.toString();
     }
 }

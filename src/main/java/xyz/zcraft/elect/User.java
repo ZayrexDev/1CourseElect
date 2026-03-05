@@ -1,4 +1,4 @@
-package xyz.zcraft;
+package xyz.zcraft.elect;
 
 import com.alibaba.fastjson2.JSONObject;
 import lombok.Getter;

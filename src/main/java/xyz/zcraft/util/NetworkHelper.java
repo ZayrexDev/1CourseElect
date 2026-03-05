@@ -1,10 +1,9 @@
 package xyz.zcraft.util;
 
-import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import org.apache.logging.log4j.Logger;
-import xyz.zcraft.User;
+import xyz.zcraft.elect.User;
 import xyz.zcraft.elect.*;
 
 import java.io.IOException;
