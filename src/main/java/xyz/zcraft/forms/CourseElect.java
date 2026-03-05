@@ -1,11 +1,7 @@
 package xyz.zcraft.forms;
 
 import org.apache.logging.log4j.Logger;
-import xyz.zcraft.elect.User;
-import xyz.zcraft.elect.CourseData;
-import xyz.zcraft.elect.ElectRequest;
-import xyz.zcraft.elect.Round;
-import xyz.zcraft.elect.TeachClass;
+import xyz.zcraft.elect.*;
 import xyz.zcraft.util.AsyncHelper;
 import xyz.zcraft.util.NetworkHelper;
 
@@ -87,14 +83,14 @@ public class CourseElect {
         searchBtn.setEnabled(false);
         courseIdField.setEnabled(false);
         String courseId = courseIdField.getText().toUpperCase().trim();
-        if(courseId.isBlank() || !courseId.matches("^[A-Z]{3}\\d{4}(\\d{2})?$")) {
+        if (courseId.isBlank() || !courseId.matches("^[A-Z]{3}\\d{4}(\\d{2})?$")) {
             getResultLabel.setText("课程编号格式不正确");
             searchBtn.setEnabled(true);
             courseIdField.setEnabled(true);
             return;
         }
 
-        if(courseId.length() == 9) {
+        if (courseId.length() == 9) {
             jumpField.setText(courseId);
             courseIdField.setText(courseId.substring(0, 7));
             courseId = courseIdField.getText();
@@ -159,8 +155,13 @@ public class CourseElect {
     }
 
     private void addSelectedToElect(ActionEvent e) {
-        final TeachClass selected = courseClassList.getSelectedValue();
-        if (selected != null && !toElect.contains(selected) && !toQuit.contains(selected)) {
+        TeachClass selected = courseClassList.getSelectedValue();
+        if (selected == null) selected = quitList.getSelectedValue();
+        if (selected != null && !toElect.contains(selected)) {
+            if(toQuit.contains(selected)) {
+                toQuit.removeElement(selected);
+                quitList.clearSelection();
+            }
             toElect.addElement(selected);
             electList.setSelectedValue(selected, true);
             removeBtn.setEnabled(true);
@@ -170,8 +171,13 @@ public class CourseElect {
     }
 
     private void addSelectedToQuit(ActionEvent e) {
-        final TeachClass selected = courseClassList.getSelectedValue();
-        if (selected != null && !toElect.contains(selected) && !toQuit.contains(selected)) {
+        TeachClass selected = courseClassList.getSelectedValue();
+        if (selected == null) selected = electList.getSelectedValue();
+        if (selected != null && !toQuit.contains(selected)) {
+            if(toElect.contains(selected)) {
+                toElect.removeElement(selected);
+                electList.clearSelection();
+            }
             toQuit.addElement(selected);
             quitList.setSelectedValue(selected, true);
             removeBtn.setEnabled(true);
@@ -190,7 +196,7 @@ public class CourseElect {
 
     private void electSelected(ListSelectionEvent e) {
         quitList.clearSelection();
-        if(courseClass.contains(electList.getSelectedValue())) {
+        if (courseClass.contains(electList.getSelectedValue())) {
             courseClassList.setSelectedValue(electList.getSelectedValue(), true);
         } else {
             courseClassList.clearSelection();
@@ -198,19 +204,19 @@ public class CourseElect {
 
         removeBtn.setEnabled(true);
         addElectBtn.setEnabled(false);
-        addQuitBtn.setEnabled(false);
+        addQuitBtn.setEnabled(true);
     }
 
     private void quitSelected(ListSelectionEvent e) {
         electList.clearSelection();
-        if(courseClass.contains(quitList.getSelectedValue())) {
+        if (courseClass.contains(quitList.getSelectedValue())) {
             courseClassList.setSelectedValue(quitList.getSelectedValue(), true);
         } else {
             courseClassList.clearSelection();
         }
 
         removeBtn.setEnabled(true);
-        addElectBtn.setEnabled(false);
+        addElectBtn.setEnabled(true);
         addQuitBtn.setEnabled(false);
     }
 

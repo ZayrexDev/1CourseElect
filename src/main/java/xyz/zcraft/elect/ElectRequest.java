@@ -34,7 +34,7 @@ public class ElectRequest {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("{").append(mainClass.newTeachClassCode()).append("}-选[");
+        sb.append("{").append(mainClass == null ? "无" : mainClass.newTeachClassCode()).append("}-选[");
         for (TeachClass teachClass : electClasses) {
             sb.append(teachClass.newTeachClassCode()).append(teachClass.courseName()).append(",");
         }

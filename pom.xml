@@ -6,7 +6,17 @@
 
     <groupId>xyz.zcraft</groupId>
     <artifactId>1CourseElect</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>alpha1</version>
+    <url>https://github.com/ZayrexDev/1CourseElect</url>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>

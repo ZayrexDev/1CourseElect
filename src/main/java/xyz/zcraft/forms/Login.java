@@ -59,6 +59,8 @@ public class Login {
 
         statusInfoLabel.setText("尝试加载缓存...");
 
+        buttonOk.setEnabled(false);
+        cacheCheck.setEnabled(false);
         uidField.setEnabled(false);
         passwordField.setEnabled(false);
         AsyncHelper.supplyAsync(() -> {
@@ -82,6 +84,8 @@ public class Login {
                     statusInfoLabel.setText("缓存加载失败");
                     uidField.setText("");
                     passwordField.setText("");
+                    cacheCheck.setEnabled(true);
+                    buttonOk.setEnabled(true);
                     uidField.setEnabled(true);
                     passwordField.setEnabled(true);
                     return null;
@@ -97,6 +101,7 @@ public class Login {
                         cacheCheck.setText("缓存已加载");
                         statusInfoLabel.setText("登录至 " + user.getUid() + "-" + user.getName());
                         buttonOk.setText("获取选课轮次");
+                        buttonOk.setEnabled(true);
 
                         uidField.setEnabled(false);
                         passwordField.setEnabled(false);

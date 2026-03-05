@@ -2,11 +2,7 @@ package xyz.zcraft.forms;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import xyz.zcraft.elect.User;
-import xyz.zcraft.elect.ElectRequest;
-import xyz.zcraft.elect.ElectResult;
-import xyz.zcraft.elect.Round;
-import xyz.zcraft.elect.TeachClass;
+import xyz.zcraft.elect.*;
 import xyz.zcraft.util.AsyncHelper;
 import xyz.zcraft.util.JTextAreaLoggerFactory;
 import xyz.zcraft.util.NetworkHelper;
@@ -15,6 +11,8 @@ import javax.swing.*;
 import javax.swing.text.NumberFormatter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -27,11 +25,12 @@ import java.util.concurrent.TimeUnit;
 
 public class ElectRequester {
     private final Logger LOG = LogManager.getLogger(ElectRequester.class);
-    private Logger ELECT_LOG = null;
-    private Logger RESULT_LOG = null;
     private final User user;
     private final Round round;
     private final DefaultListModel<ElectRequest> requests = new DefaultListModel<>();
+    private ScheduledExecutorService scheduler = null;
+    private Logger ELECT_LOG = null;
+    private Logger RESULT_LOG = null;
     private JCheckBox onFixedTimeCheck;
     private JFormattedTextField fixedTimeCountField;
     private JFormattedTextField fixedTimeDelayField;
@@ -47,7 +46,6 @@ public class ElectRequester {
     private JButton addRequestBtn;
     private JButton removeRequestBtn;
     private JPanel rootPane;
-    private JPanel requestEditPane;
     private JFormattedTextField manualDelayField;
     private JButton manualStopBtn;
     private JFormattedTextField resultLookUpDelayField;
@@ -55,11 +53,22 @@ public class ElectRequester {
     private JTextArea resultLogArea;
     private JButton resultLookUpButton;
     private JLabel resultLookUpStatus;
+    private JButton checkCapacityBtn;
+    private JButton sortUpBtn;
+    private JButton sortDownBtn;
+    private JFormattedTextField requestMidDelayField;
+    private JList<TeachClass> electList;
+    private JList<TeachClass> quitList;
+    private JPanel requestInfoPane;
+    private JLabel awaLable;
     private JFrame jFrame;
     private boolean resultReady = false;
-    private final Timer resultTimer = new Timer(500, this::updateCountdown);
     private volatile boolean manualStarted = false;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private boolean lastIsProcessing = false;
+    private final Timer resultTimer = new Timer(500, this::updateCountdown);
+    private Duration countdown = Duration.ZERO;
+    private boolean checkCapacityRunning = false;
+    private final Timer checkCapacityTimer = new Timer(1000, this::checkCapacityCountdown);
 
     public ElectRequester(User user, Round round) {
         this.user = user;
@@ -70,6 +79,48 @@ public class ElectRequester {
         setupFormatters();
         setupFrame();
         setupLogger();
+    }
+
+    private void checkCapacityCountdown(ActionEvent actionEvent) {
+        if (!checkCapacityRunning) return;
+        if (countdown.isPositive()) {
+            countdownLabel.setText(String.format("%d:%02d:%02d", countdown.toHours(), countdown.toMinutesPart(), countdown.toSecondsPart()));
+            countdown = countdown.minusSeconds(1);
+        } else {
+            checkCapacityNow();
+        }
+    }
+
+    private void checkCapacityNow() {
+        LOG.info("Checking capacity...");
+        ELECT_LOG.info("[容量检测]正在检查选课容量...");
+        countdown = Duration.ofSeconds(Integer.parseInt(emptyDelayField.getText()) * 60L);
+        AsyncHelper.supplyAsync(() -> {
+            List<TeachClass> checkList = new LinkedList<>();
+            requests.elements().asIterator().forEachRemaining(r -> checkList.addAll(r.getElectClasses()));
+
+            final boolean[] capacityAvailable = {false};
+            for (TeachClass teachClass : checkList) {
+                NetworkHelper.getTeachClasses(user, round, teachClass.courseCode())
+                        .stream()
+                        .filter(c -> Objects.equals(c.teachClassId(), teachClass.teachClassId()))
+                        .findFirst()
+                        .ifPresent(c -> {
+                            if (c.maxNumber() > c.currentNumber()) {
+                                capacityAvailable[0] = true;
+                            }
+                        });
+                if (capacityAvailable[0]) break;
+            }
+
+            if (capacityAvailable[0]) {
+                ELECT_LOG.info("[容量检测]检测到选课容量，正在发送选课请求...");
+                requests.elements().asIterator().forEachRemaining(this::sendRequest);
+            } else {
+                ELECT_LOG.info("[容量检测]未检测到选课容量，继续等待...");
+            }
+            return null;
+        });
     }
 
     private void setupComponents() {
@@ -86,11 +137,71 @@ public class ElectRequester {
         onFixedTimeCheck.addActionListener(this::setTimeSchedule);
         resultLookUpButton.addActionListener(_ ->
                 AsyncHelper.supplyAsync(() -> NetworkHelper.getElectResult(user, round))
-                .thenAccept(this::handleResult)
+                        .thenAccept(this::handleResult)
         );
+        checkCapacityBtn.addActionListener(_ -> checkCapacityNow());
+        onEmptyCheck.addActionListener(_ -> {
+            if (onEmptyCheck.isSelected()) {
+                emptyDelayField.setEnabled(false);
+                checkCapacityRunning = true;
+                countdown = Duration.ofSeconds(Integer.parseInt(emptyDelayField.getText()) * 60L);
+                checkCapacityTimer.start();
+            } else {
+                checkCapacityRunning = false;
+                countdownLabel.setText("--:--:--");
+                checkCapacityTimer.stop();
+                emptyDelayField.setEnabled(true);
+            }
+        });
+        sortUpBtn.addActionListener(_ -> {
+            int index = electRequestJList.getSelectedIndex();
+            if (index > 0) {
+                ElectRequest selected = requests.get(index);
+                requests.remove(index);
+                requests.add(index - 1, selected);
+                electRequestJList.setSelectedIndex(index - 1);
+            }
+        });
+        sortDownBtn.addActionListener(_ -> {
+            int index = electRequestJList.getSelectedIndex();
+            if (index >= 0 && index < requests.size() - 1) {
+                ElectRequest selected = requests.get(index);
+                requests.remove(index);
+                requests.add(index + 1, selected);
+                electRequestJList.setSelectedIndex(index + 1);
+            }
+        });
+        electRequestJList.addListSelectionListener(_ -> refreshRequestDetail());
+        awaLable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                new AboutDialog().setVisible(true);
+            }
+        });
     }
 
-    private boolean lastIsProcessing = false;
+    private void refreshRequestDetail() {
+        final ElectRequest selected = electRequestJList.getSelectedValue();
+        if (selected != null) {
+            editRequestBtn.setEnabled(true);
+            removeRequestBtn.setEnabled(true);
+            sortDownBtn.setEnabled(true);
+            sortUpBtn.setEnabled(true);
+
+            electList.setListData(selected.getElectClasses().toArray(new TeachClass[0]));
+            quitList.setListData(selected.getWithdrawClasses().toArray(new TeachClass[0]));
+            requestInfoPane.setVisible(true);
+        } else {
+            editRequestBtn.setEnabled(false);
+            removeRequestBtn.setEnabled(false);
+            sortDownBtn.setEnabled(false);
+            sortUpBtn.setEnabled(false);
+
+            requestInfoPane.setVisible(false);
+            electList.setListData(new TeachClass[0]);
+            quitList.setListData(new TeachClass[0]);
+        }
+    }
 
     private void setupFormatters() {
         final var tf = new JFormattedTextField.AbstractFormatterFactory() {
@@ -115,13 +226,15 @@ public class ElectRequester {
         fixedTimeCountField.setFormatterFactory(tf);
         emptyDelayField.setFormatterFactory(tf);
         resultLookUpDelayField.setFormatterFactory(tf);
+        requestMidDelayField.setFormatterFactory(tf);
 
         manualDelayField.setValue(500);
         manualCountField.setValue(5);
         fixedTimeDelayField.setValue(500);
         fixedTimeCountField.setValue(5);
-        emptyDelayField.setValue(500);
+        emptyDelayField.setValue(5);
         resultLookUpDelayField.setValue(200);
+        requestMidDelayField.setValue(50);
     }
 
     private void handleResult(ElectResult electResult) {
@@ -130,7 +243,7 @@ public class ElectRequester {
         ) {
             resultReady = false;
             resultLookUpStatus.setText("√");
-            if(!lastIsProcessing) RESULT_LOG.info("服务器处理选课中...");
+            if (!lastIsProcessing) RESULT_LOG.info("服务器处理选课中...");
             lastIsProcessing = true;
         } else if (Objects.equals(electResult.status(), "Ready")) {
             lastIsProcessing = false;
@@ -148,11 +261,11 @@ public class ElectRequester {
                         .filter(c -> Objects.equals(c.teachClassId(), courseId))
                         .findFirst()
                         .ifPresent(c ->
-                                RESULT_LOG.info("选课成功: {} - {}", c.newTeachClassCode(), c.courseName())
+                                RESULT_LOG.info("选/退课成功: {}-{}", c.newTeachClassCode(), c.courseName())
                         );
             }
             electResult.failedReasons().forEach((key, value) ->
-                    RESULT_LOG.info("选课失败: {} - {}", key, value)
+                    RESULT_LOG.info("选课失败: {}-{}", key, value)
             );
         }
     }
@@ -189,6 +302,11 @@ public class ElectRequester {
                 }
                 int finalI = i;
                 requests.elements().asIterator().forEachRemaining(request -> {
+                    try {
+                        Thread.sleep(Long.parseLong(requestMidDelayField.getText()));
+                    } catch (InterruptedException ex) {
+                        throw new RuntimeException(ex);
+                    }
                     sendRequest(request);
                     ELECT_LOG.info("[手动]已发送选课请求({}/{}): {}", finalI + 1, count, request);
                 });
@@ -209,7 +327,6 @@ public class ElectRequester {
     }
 
     private void openAddRequest(ActionEvent actionEvent) {
-        requestEditPane.setEnabled(false);
         AsyncHelper.supplyAsync(() -> {
             CourseElect courseElect = new CourseElect(user, round);
             return courseElect.openEdit(null);
@@ -217,24 +334,18 @@ public class ElectRequester {
             if (e != null) {
                 requests.addElement(e);
             }
-            requestEditPane.setEnabled(true);
         }).exceptionally(e -> {
             LOG.error("Exception threw when adding request", e);
-            requestEditPane.setEnabled(true);
             return null;
         });
     }
 
     private void openEditRequest(ActionEvent actionEvent) {
-        requestEditPane.setEnabled(false);
         AsyncHelper.supplyAsync(() -> {
             CourseElect courseElect = new CourseElect(user, round);
-            final ElectRequest electRequest = courseElect.openEdit(electRequestJList.getSelectedValue());
-            requestEditPane.setEnabled(true);
-            return electRequest;
-        }).exceptionally(e -> {
+            return courseElect.openEdit(electRequestJList.getSelectedValue());
+        }).thenAccept(_ ->refreshRequestDetail()).exceptionally(e -> {
             LOG.error("Exception threw when editing request", e);
-            requestEditPane.setEnabled(true);
             return null;
         });
     }
@@ -275,13 +386,15 @@ public class ElectRequester {
                 int targetMinute = Integer.parseInt(parts[1]);
                 int targetSecond = Integer.parseInt(parts[2]);
 
-                fixedTimeLabel.setText(targetHour + ":" + targetMinute + ":" + targetSecond);
+                fixedTimeLabel.setText(String.format("%02d:%02d:%02d", targetHour, targetMinute, targetSecond));
 
                 LocalDateTime now = LocalDateTime.now();
                 LocalDateTime targetTime = now.withHour(targetHour).withMinute(targetMinute).withSecond(targetSecond).withNano(0);
 
                 long delayInSeconds = Duration.between(now, targetTime).getSeconds();
 
+                if (scheduler != null) scheduler.shutdownNow();
+                scheduler = Executors.newScheduledThreadPool(1);
                 scheduler.schedule(() -> {
                     ELECT_LOG.info("定时请求开始执行");
                     int count = Integer.parseInt(fixedTimeCountField.getText());
@@ -293,6 +406,11 @@ public class ElectRequester {
                         }
                         int finalI = i;
                         requests.elements().asIterator().forEachRemaining(request -> {
+                            try {
+                                Thread.sleep(Long.parseLong(requestMidDelayField.getText()));
+                            } catch (InterruptedException ex) {
+                                throw new RuntimeException(ex);
+                            }
                             sendRequest(request);
                             ELECT_LOG.info("[定时]已发送选课请求({}/{}): {}", finalI + 1, count, request);
                         });
@@ -307,14 +425,22 @@ public class ElectRequester {
                     fixedTimeLabel.setText("--:--:--");
                     fixedTimeCountField.setEnabled(true);
                     fixedTimeDelayField.setEnabled(true);
+
+                    scheduler.shutdown();
                 }, delayInSeconds, TimeUnit.SECONDS);
+
+                LOG.info("Scheduled time-based request at {} (in {} seconds)", timeStr, delayInSeconds);
             } else {
                 JOptionPane.showMessageDialog(jFrame, "时间格式错误，请输入 HH:mm:ss 格式的时间", "错误", JOptionPane.ERROR_MESSAGE);
                 onFixedTimeCheck.setSelected(false);
+                fixedTimeLabel.setText("--:--:--");
+                fixedTimeCountField.setEnabled(true);
+                fixedTimeDelayField.setEnabled(true);
             }
         } else {
-            fixedTimeCountField.setEnabled(false);
-            fixedTimeDelayField.setEnabled(false);
+            fixedTimeCountField.setEnabled(true);
+            fixedTimeDelayField.setEnabled(true);
+            fixedTimeLabel.setText("--:--:--");
 
             final List<Runnable> r = scheduler.shutdownNow();
             LOG.info("Terminated time schedule, stopped {} tasks", r.size());
