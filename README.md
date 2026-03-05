@@ -1,6 +1,6 @@
 # 1CourseElect
 
-> 同济大学一站式服务平台（1.tongji.edu.cn）自动选课辅助工具
+> 同济大学一站式服务平台（1.tongji.edu.cn）选课相关技术学习项目
 
 [![Java](https://img.shields.io/badge/Java-25-orange?logo=openjdk)](https://openjdk.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -8,15 +8,17 @@
 
 ## 📖 简介
 
-**1CourseElect** 是一款面向同济大学学生的桌面端选课辅助工具，通过模拟登录同济大学一站式服务平台，自动完成选课请求的发送，帮助学生在选课高峰期快速抢占课位。
+**1CourseElect** 是一个以**学习与技术交流为目的**的个人项目，通过模拟 HTTP 请求与同济大学一站式服务平台交互，用于学习 Java 网络编程、SSO 登录流程、自动化请求等相关技术。
 
-程序基于 Java Swing 构建 GUI，支持手动/自动循环发送选课请求，并在界面内实时展示日志输出。
+程序基于 Java Swing 构建 GUI，支持手动/自动循环发送请求，并在界面内实时展示日志输出。
 
 ---
 
 ## ⚠️ 免责声明
 
 本项目仅供学习与技术研究使用，请遵守同济大学相关规定，合理使用本工具代码。本项目作者不对任何因使用此程序及其代码、二次开发版本等所引起的后果负责。
+
+详细免责声明请查阅：[DISCLAIMER.md](./DISCLAIMER.md)
 
 ---
 
