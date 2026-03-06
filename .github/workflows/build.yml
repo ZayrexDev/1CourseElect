@@ -54,12 +54,14 @@ jobs:
             --input target \
             --main-jar "$(basename "$JAR_FILE")" \
             --main-class xyz.zcraft.Main \
-            --name "1CourseElect" \
+            --name "OneCourseElect" \
             --app-version "1.0.0" \
             --vendor "ZayrexDev" \
             --description "同济大学1系统抢课助手" \
             --dest target/dist \
-            --type ${{ matrix.jpackage_type }}
+            --win-shortcut \
+            --type ${{ matrix.jpackage_type }} \
+            --java-options "--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow"
 
       - name: Upload native installer artifact
         uses: actions/upload-artifact@v4
