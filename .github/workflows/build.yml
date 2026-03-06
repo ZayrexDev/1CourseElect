@@ -55,14 +55,17 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             WIN_SHORTCUT="--win-shortcut"
           fi
+          
+          APP_VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
+          echo "APP_VERSION=$APP_VERSION"
 
           jpackage \
             --input target \
             --main-jar "$(basename "$JAR_FILE")" \
             --main-class xyz.zcraft.Main \
             --name "OneCourseElect" \
-            --app-version "1.0.0" \
-            --vendor "ZayrexDev" \
+            --app-version "$APP_VERSION" \
+            --vendor "Zayrex" \
             --description "同济大学1系统抢课助手" \
             --dest target/dist \
             ${WIN_SHORTCUT} \
