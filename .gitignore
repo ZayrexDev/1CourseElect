@@ -33,4 +33,7 @@ build/
 
 ### Mac OS ###
 .DS_Store
-/cache
+
+
+/cache/
+/logs/

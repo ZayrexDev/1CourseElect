@@ -25,7 +25,7 @@ public class Login {
     private static final Object LOCK = new Object();
     private static final Logger LOG = LogManager.getLogger(Login.class);
 
-    private final Path cachePath = Path.of("cache");
+    private final Path cachePath = Path.of("cache/cookie");
 
     private JTextField uidField;
     private JButton buttonOk;
@@ -160,6 +160,7 @@ public class Login {
 
                         if (cacheCheck.isSelected()) {
                             try {
+                                Files.createDirectories(cachePath.getParent());
                                 Files.writeString(cachePath, user.getCookie());
                                 cacheCheck.setText("缓存已保存");
                             } catch (Exception e) {
