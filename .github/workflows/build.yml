@@ -79,10 +79,10 @@ jobs:
           path: target/dist/*
           retention-days: 30
 
-      - name: Upload fat JAR artifact
+      - name: Upload JAR artifact
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: 1CourseElect-jar-with-dependencies
-          path: target/*-jar-with-dependencies.jar
+          path: target/*.jar
           retention-days: 30
