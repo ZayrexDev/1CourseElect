@@ -6,7 +6,7 @@
 
     <groupId>xyz.zcraft</groupId>
     <artifactId>1CourseElect</artifactId>
-    <version>alpha1</version>
+    <version>v1.0.0-alpha</version>
     <url>https://github.com/ZayrexDev/1CourseElect</url>
 
     <build>

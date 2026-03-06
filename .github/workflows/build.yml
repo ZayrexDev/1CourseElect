@@ -53,7 +53,7 @@ jobs:
 
           WIN_SHORTCUT=""
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            WIN_SHORTCUT="--win-shortcut"
+            WIN_SHORTCUT="--win-shortcut --win-dir-chooser"
           fi
           
           APP_VERSION="$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)"
