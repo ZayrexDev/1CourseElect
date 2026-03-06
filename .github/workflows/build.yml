@@ -50,6 +50,12 @@ jobs:
         shell: bash
         run: |
           JAR_FILE=$(ls target/*-jar-with-dependencies.jar | head -1)
+
+          WIN_SHORTCUT=""
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            WIN_SHORTCUT="--win-shortcut"
+          fi
+
           jpackage \
             --input target \
             --main-jar "$(basename "$JAR_FILE")" \
@@ -59,7 +65,7 @@ jobs:
             --vendor "ZayrexDev" \
             --description "同济大学1系统抢课助手" \
             --dest target/dist \
-            --win-shortcut \
+            ${WIN_SHORTCUT} \
             --type ${{ matrix.jpackage_type }} \
             --java-options "--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow"
 
