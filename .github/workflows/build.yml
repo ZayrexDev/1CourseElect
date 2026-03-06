@@ -1,0 +1,77 @@
+name: Build & Package
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            jpackage_type: deb
+          - os: windows-latest
+            platform: windows
+            jpackage_type: exe
+          - os: macos-latest
+            platform: macos
+            jpackage_type: dmg
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build fat JAR with Maven
+        run: mvn --batch-mode clean package
+
+      - name: Install WiX Toolset (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install wixtoolset --no-progress -y
+          echo "C:\Program Files (x86)\WiX Toolset v3.11\bin" >> $env:GITHUB_PATH
+        shell: pwsh
+
+      - name: Create native image with jpackage
+        shell: bash
+        run: |
+          JAR_FILE=$(ls target/*-jar-with-dependencies.jar | head -1)
+          jpackage \
+            --input target \
+            --main-jar "$(basename "$JAR_FILE")" \
+            --main-class xyz.zcraft.Main \
+            --name "1CourseElect" \
+            --app-version "1.0.0" \
+            --vendor "ZayrexDev" \
+            --description "同济大学1系统抢课助手" \
+            --dest target/dist \
+            --type ${{ matrix.jpackage_type }}
+
+      - name: Upload native installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 1CourseElect-${{ matrix.platform }}
+          path: target/dist/*
+          retention-days: 30
+
+      - name: Upload fat JAR artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: 1CourseElect-jar-with-dependencies
+          path: target/*-jar-with-dependencies.jar
+          retention-days: 30
