@@ -16,6 +16,22 @@ public class ElectRequest {
     private int roundId;
     private TeachClass mainClass;
 
+    public ElectRequest copy() {
+        ElectRequest electRequest = new ElectRequest();
+
+        electRequest.studentId = null;
+
+        electRequest.courseCode = courseCode;
+        electRequest.teachClassId = teachClassId;
+        electRequest.calendarId = calendarId;
+        electRequest.electClasses = List.copyOf(this.electClasses);
+        electRequest.withdrawClasses = List.copyOf(this.withdrawClasses);
+        electRequest.roundId = roundId;
+        electRequest.mainClass = mainClass;
+
+        return electRequest;
+    }
+
     public void setMainClass(TeachClass mainClass) {
         this.mainClass = mainClass;
         if (mainClass == null) return;

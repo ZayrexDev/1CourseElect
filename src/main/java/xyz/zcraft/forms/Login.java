@@ -38,6 +38,7 @@ public class Login {
     private JPasswordField passwordField;
     private JLabel statusInfoLabel;
     private JCheckBox cacheCheck;
+    private JButton manualEnterBtn;
 
     private boolean loginReady = false;
     private boolean roundDataReady = false;
@@ -109,6 +110,7 @@ public class Login {
                         uidField.setEnabled(false);
                         passwordField.setEnabled(false);
                         cacheCheck.setEnabled(false);
+                        manualEnterBtn.setEnabled(true);
                     }
                 });
     }
@@ -128,6 +130,32 @@ public class Login {
     private void setUpListeners() {
         buttonOk.addActionListener(this::proceed);
         roundCombo.addActionListener(this::roundSelected);
+        manualEnterBtn.addActionListener(this::manualEnter);
+    }
+
+    public void manualEnter(ActionEvent actionEvent) {
+        final String idStr = JOptionPane.showInputDialog("输入选课ID");
+
+        if (idStr == null || idStr.isEmpty()) {
+            return;
+        }
+
+        final int id = Integer.parseInt(idStr);
+
+        final String calIdStr = JOptionPane.showInputDialog("输入课表ID");
+
+        if (calIdStr == null || calIdStr.isEmpty()) {
+            return;
+        }
+
+        final int calId = Integer.parseInt(calIdStr);
+
+        roundData = new RoundData(id, calId, -1, "手动输入轮次", -1, "", "", "手动输入轮次", "手动输入轮次");
+
+        synchronized (LOCK) {
+            LOCK.notifyAll();
+        }
+        jFrame.setVisible(false);
     }
 
     public Map.Entry<User, Round> requestLogin() {
@@ -172,6 +200,8 @@ public class Login {
                         loginReady = true;
                         buttonOk.setText("获取选课轮次");
                         buttonOk.setEnabled(true);
+
+                        manualEnterBtn.setEnabled(true);
                     }).exceptionally((e) -> {
                         LOG.error("Login failed", e);
                         JOptionPane.showMessageDialog(jFrame, "登录失败，请稍后再试一次", "错误", JOptionPane.ERROR_MESSAGE);
@@ -247,9 +277,19 @@ public class Login {
                     """
                             %s %s
                             选课开放时间：%s-%s
+                            选课ID：%d
+                            课表ID：%d
                             选课说明：
                             %s
-                            """, roundData.calendarName(), roundData.name(), roundData.beginTime(), roundData.endTime(), roundData.remark()));
+                            
+                            """,
+                    roundData.calendarName(),
+                    roundData.name(),
+                    roundData.beginTime(),
+                    roundData.endTime(),
+                    roundData.id(),
+                    roundData.calendarId(),
+                    roundData.remark()));
             detailScroll.getHorizontalScrollBar().setValue(0);
         }
     }
@@ -270,13 +310,13 @@ public class Login {
      */
     private void $$$setupUI$$$() {
         rootPane = new JPanel();
-        rootPane.setLayout(new GridLayoutManager(4, 3, new Insets(10, 10, 10, 10), -1, -1));
+        rootPane.setLayout(new GridLayoutManager(4, 4, new Insets(10, 10, 10, 10), -1, -1));
         buttonOk = new JButton();
         buttonOk.setText("获取选课信息");
-        rootPane.add(buttonOk, new GridConstraints(3, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        rootPane.add(buttonOk, new GridConstraints(3, 3, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         roundSelectionPane = new JPanel();
         roundSelectionPane.setLayout(new GridLayoutManager(2, 2, new Insets(0, 0, 0, 0), -1, -1));
-        rootPane.add(roundSelectionPane, new GridConstraints(1, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        rootPane.add(roundSelectionPane, new GridConstraints(1, 0, 1, 4, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         final JPanel panel1 = new JPanel();
         panel1.setLayout(new GridLayoutManager(1, 3, new Insets(0, 0, 0, 0), -1, -1));
         roundSelectionPane.add(panel1, new GridConstraints(0, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
@@ -299,7 +339,7 @@ public class Login {
         detailScroll.setViewportView(roundDetail);
         final JPanel panel2 = new JPanel();
         panel2.setLayout(new GridLayoutManager(2, 2, new Insets(0, 0, 0, 0), -1, -1));
-        rootPane.add(panel2, new GridConstraints(0, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+        rootPane.add(panel2, new GridConstraints(0, 0, 1, 4, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         uidField = new JTextField();
         panel2.add(uidField, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
         final JLabel label2 = new JLabel();
@@ -314,10 +354,14 @@ public class Login {
         statusInfoLabel.setText("");
         rootPane.add(statusInfoLabel, new GridConstraints(3, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final Spacer spacer1 = new Spacer();
-        rootPane.add(spacer1, new GridConstraints(2, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        rootPane.add(spacer1, new GridConstraints(2, 0, 1, 4, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         cacheCheck = new JCheckBox();
         cacheCheck.setText("缓存登录凭据");
         rootPane.add(cacheCheck, new GridConstraints(3, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        manualEnterBtn = new JButton();
+        manualEnterBtn.setEnabled(false);
+        manualEnterBtn.setText("输入ID");
+        rootPane.add(manualEnterBtn, new GridConstraints(3, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, 1, 1, null, null, null, 0, false));
     }
 
     /**
@@ -326,4 +370,5 @@ public class Login {
     public JComponent $$$getRootComponent$$$() {
         return rootPane;
     }
+
 }
